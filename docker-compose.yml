@@ -1,0 +1,20 @@
+version: "3.9"
+services:
+  orchestrator:
+    build: .
+    environment:
+      - PORT=8080
+      - MCP_SERVERS=[{"name":"clock","url":"http://fastapi-mcp:8081/"}]
+      - ALLOW_ORIGINS=*
+    ports:
+      - "8080:8080"
+    depends_on:
+      - fastapi-mcp
+  fastapi-mcp:
+    image: ghcr.io/example/fastapi-mcp:latest
+    # Replace with your own image or build context for your fastapi-mcp server
+    # build: ../fastapi-mcp
+    environment:
+      - PORT=8081
+    ports:
+      - "8081:8081"
