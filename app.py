@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from models import AgentInvokeRequest, AgentInvokeResponse, CatalogResponse
@@ -26,6 +27,18 @@ async def config_probe():
         "servers_configured": [s.name for s in settings.MCP_SERVERS],
         "origins": settings.ALLOW_ORIGINS,
     }
+
+@app.get("/config/raw")
+async def config_raw():
+    raw = os.getenv("MCP_SERVERS", "")
+    truncated = raw[:2000]
+    if len(raw) > 2000:
+        truncated += "...<truncated>"
+    return {"MCP_SERVERS": truncated}
+
+@app.get("/version")
+async def version():
+    return {"commit": os.getenv("COMMIT_SHA", "unknown")}
 
 @app.get("/catalog", response_model=CatalogResponse)
 async def catalog():

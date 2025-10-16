@@ -13,13 +13,17 @@ _POLICY = (
 
 async def aggregate_catalog() -> CatalogResponse:
     items: List[CatalogItem] = []
+    # TODO: parallelize catalog fetches with asyncio.gather for better performance
     for srv in settings.MCP_SERVERS:
         try:
             resp = await mcp_tools_list(srv.url, srv.api_key)
             tools = ToolsListResult(**resp.result).tools
+            print(f"[catalog] server={srv.name} ok=true error=\"-\" count={len(tools)}")
             for t in tools:
                 items.append(CatalogItem(server=srv.name, tool=t))
         except Exception as e:
+            err_msg = f"{type(e).__name__}:{str(e)[:120]}".replace("\n", "\\n").replace('"', "'")
+            print(f"[catalog] server={srv.name} ok=false error=\"{err_msg}\"")
             # Represent failures as a pseudo-tool so callers can see availability
             items.append(CatalogItem(server=srv.name, tool=Tool(name="__error__", title="Server error", description=str(e))))
     return CatalogResponse(items=items)
