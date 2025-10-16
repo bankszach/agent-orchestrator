@@ -1,49 +1,62 @@
 from __future__ import annotations
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
 from typing import Optional, List
 import base64
-import os
 import json
+import os
+
 
 class MCPServer(BaseModel):
     name: str
     url: str
     api_key: Optional[str] = None
 
+
 class Settings(BaseModel):
-    # JSON list of {name,url,api_key?}
     MCP_SERVERS: List[MCPServer] = []
     PORT: int = int(os.getenv("PORT", "8080"))
     ALLOW_ORIGINS: str = os.getenv("ALLOW_ORIGINS", "*")
 
-    @field_validator("MCP_SERVERS", mode="before")
-    @classmethod
-    def parse_servers(cls, v):
-        if isinstance(v, list):
-            return v
 
-        raw = os.getenv("MCP_SERVERS", "")
-        if not raw:
-            print("[settings] MCP_SERVERS env is empty")
+def _parse_servers_from_env() -> List[MCPServer]:
+    raw = os.getenv("MCP_SERVERS", "")
+    if not raw:
+        print("[settings] MCP_SERVERS env is empty")
+        return []
+
+    def _coerce(data: List[dict | MCPServer]) -> List[MCPServer]:
+        servers: List[MCPServer] = []
+        for item in data:
+            if isinstance(item, MCPServer):
+                servers.append(item)
+            elif isinstance(item, dict):
+                servers.append(MCPServer(**item))
+            else:
+                raise TypeError(f"Unsupported server entry type: {type(item).__name__}")
+        return servers
+
+    try:
+        data = json.loads(raw)
+        return _coerce(data)
+    except Exception as e_json:
+        try:
+            decoded = base64.b64decode(raw).decode("utf-8", "ignore")
+            data = json.loads(decoded)
+            return _coerce(data)
+        except Exception as e_b64:
+            head = raw[:120].replace("\n", "\\n")
+            print(
+                "[settings] Failed to parse MCP_SERVERS; "
+                f"head={head!r}; json_err={type(e_json).__name__}; b64_err={type(e_b64).__name__}"
+            )
             return []
 
-        try:
-            return json.loads(raw)
-        except Exception as e_json:
-            try:
-                decoded = base64.b64decode(raw).decode("utf-8", "ignore")
-                return json.loads(decoded)
-            except Exception as e_b64:
-                head = raw[:120].replace("\n", "\\n")
-                print(
-                    "[settings] Failed to parse MCP_SERVERS; "
-                    f"head={head!r}; json_err={type(e_json).__name__}; b64_err={type(e_b64).__name__}"
-                )
-                return []
 
 settings = Settings()
-_boot_names = [
-    s.get("name") if isinstance(s, dict) else getattr(s, "name", None)
-    for s in settings.MCP_SERVERS
-]
-print(f"[boot] servers configured count={len(_boot_names)} names={_boot_names}")
+if not settings.MCP_SERVERS:
+    settings.MCP_SERVERS = _parse_servers_from_env()
+
+print(
+    f"[boot] servers configured count={len(settings.MCP_SERVERS)} "
+    f"names={[s.name for s in settings.MCP_SERVERS]}"
+)
