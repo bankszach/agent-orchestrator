@@ -1,7 +1,10 @@
 from __future__ import annotations
 import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from mcp_facade import mcp_asgi_app
 from models import AgentInvokeRequest, AgentInvokeResponse, CatalogResponse
 from orchestrator import run_agent, aggregate_catalog
 from settings import settings
@@ -16,6 +19,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+app.mount("/mcp", mcp_asgi_app)
 
 @app.get("/healthz")
 async def healthz():
