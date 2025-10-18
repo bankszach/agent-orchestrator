@@ -6,7 +6,6 @@ from typing import Any, Dict, List
 
 import httpx
 from mcp.server.fastmcp import FastMCP
-from mcp.server.sse import create_sse_app
 
 # Base URL for the orchestrator REST facade (no trailing slash).
 # Defaults to the deployed Cloud Run instance but can be overridden in env.
@@ -72,4 +71,5 @@ async def call_tool(name: str, arguments: Dict[str, Any] | None = None):
 
 
 # Expose an ASGI app that speaks MCP over Server-Sent Events (SSE)
-mcp_asgi_app = create_sse_app(mcp)
+# ASGI app is mounted in app.py at /mcp.
+mcp_asgi_app = mcp.sse_app()
